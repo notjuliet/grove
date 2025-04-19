@@ -18,7 +18,7 @@ func padLeft(str string, length int, padChar rune) string {
 }
 
 func createRaw(timestamp, clockid int64) string {
-	return padLeft(B32Encode(timestamp), 11, '2') + padLeft(B32Encode(clockid), 2, '2')
+	return padLeft(b32Encode(timestamp), 11, '2') + padLeft(b32Encode(clockid), 2, '2')
 }
 
 func Create(timestamp, clockid int64) (string, error) {
@@ -38,8 +38,8 @@ func Parse(s string) (int64, int64, error) {
 		return 0, 0, err
 	}
 
-	timestamp := B32Decode(s[0:11])
-	clockid := B32Decode(s[11:13])
+	timestamp := b32Decode(s[0:11])
+	clockid := b32Decode(s[11:13])
 
 	return timestamp, clockid, nil
 }

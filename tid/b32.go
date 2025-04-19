@@ -4,7 +4,7 @@ import "strings"
 
 const B32Sorted = "234567abcdefghijklmnopqrstuvwxyz"
 
-func B32Encode(i int64) string {
+func b32Encode(i int64) string {
 	s := ""
 
 	for i != 0 {
@@ -16,7 +16,7 @@ func B32Encode(i int64) string {
 	return s
 }
 
-func B32Decode(s string) int64 {
+func b32Decode(s string) int64 {
 	var i int64 = 0
 
 	for _, c := range s {
