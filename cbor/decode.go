@@ -8,7 +8,7 @@ import (
 	"reflect"
 )
 
-type CidLink struct {
+type cidLink struct {
 	Bytes []byte
 }
 
@@ -118,18 +118,18 @@ func (s *state) readTypeInfo() (majorType byte, info byte, err error) {
 	return prelude >> 5, prelude & 0x1f, nil
 }
 
-func (s *state) readCid(length uint64) (CidLink, error) {
+func (s *state) readCid(length uint64) (cidLink, error) {
 	if length == 0 {
-		return CidLink{}, fmt.Errorf("invalid CID encoding: length %d too short for prefix", length)
+		return cidLink{}, fmt.Errorf("invalid CID encoding: length %d too short for prefix", length)
 	}
 
 	if err := s.ensureRead(int(length)); err != nil {
-		return CidLink{}, fmt.Errorf("reading CID: %w", err)
+		return cidLink{}, fmt.Errorf("reading CID: %w", err)
 	}
 
 	prefix := s.b[s.p]
 	if prefix != 0x00 {
-		return CidLink{}, fmt.Errorf("invalid CID encoding: expected 0x00 prefix, got 0x%02x", prefix)
+		return cidLink{}, fmt.Errorf("invalid CID encoding: expected 0x00 prefix, got 0x%02x", prefix)
 	}
 
 	cidLen := int(length - 1)
@@ -137,7 +137,7 @@ func (s *state) readCid(length uint64) (CidLink, error) {
 	copy(cidBytes, s.b[s.p+1:s.p+int(length)])
 	s.p += int(length)
 
-	return CidLink{Bytes: cidBytes}, nil
+	return cidLink{Bytes: cidBytes}, nil
 }
 
 type container struct {
