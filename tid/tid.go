@@ -35,13 +35,13 @@ func Create(timestamp, clockId int64) (string, error) {
 }
 
 // Parses a TID string into a timestamp (in milliseconds) and clock ID value.
-func Parse(s string) (int64, int64, error) {
-	if err := Validate(s); err != nil {
+func Parse(s string) (timestamp, clockId int64, err error) {
+	if err = Validate(s); err != nil {
 		return 0, 0, err
 	}
 
-	timestamp := b32Decode(s[0:11])
-	clockId := b32Decode(s[11:13])
+	timestamp = b32Decode(s[0:11])
+	clockId = b32Decode(s[11:13])
 
 	return timestamp, clockId, nil
 }
