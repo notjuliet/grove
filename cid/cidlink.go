@@ -7,7 +7,9 @@ import (
 
 // NOTE: unsure how i want to represent this, might change it
 
-type CidLink string
+type CidLink struct {
+	Bytes []byte
+}
 
 type jsonLink struct {
 	Link string `json:"$link"`
@@ -15,7 +17,7 @@ type jsonLink struct {
 
 func (ll CidLink) MarshalJSON() ([]byte, error) {
 	jl := jsonLink{
-		Link: string(ll),
+		Link: string(ll.Bytes),
 	}
 	return json.Marshal(jl)
 }
@@ -30,6 +32,6 @@ func (ll *CidLink) UnmarshalJSON(raw []byte) error {
 	if err != nil {
 		return fmt.Errorf("parsing cid-link CID: %v", err)
 	}
-	*ll = CidLink(c.String())
+	*ll = CidLink{Bytes: []byte(c.String())}
 	return nil
 }
