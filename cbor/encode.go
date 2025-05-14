@@ -117,52 +117,18 @@ func (s *State) writeAny(value any) error {
 	case []byte:
 		s.writeBytes(v, 2)
 
-	case int:
-		if v >= 0 {
-			s.writeTypeArgument(0, uint64(v))
+	case int, int8, int16, int32, int64:
+		if v.(int64) >= 0 {
+			s.writeTypeArgument(0, v.(uint64))
 		} else {
-			s.writeTypeArgument(1, uint64(-1-v))
-		}
-	case int8:
-		if v >= 0 {
-			s.writeTypeArgument(0, uint64(v))
-		} else {
-			s.writeTypeArgument(1, uint64(-1-v))
-		}
-	case int16:
-		if v >= 0 {
-			s.writeTypeArgument(0, uint64(v))
-		} else {
-			s.writeTypeArgument(1, uint64(-1-v))
-		}
-	case int32:
-		if v >= 0 {
-			s.writeTypeArgument(0, uint64(v))
-		} else {
-			s.writeTypeArgument(1, uint64(-1-v))
-		}
-	case int64:
-		if v >= 0 {
-			s.writeTypeArgument(0, uint64(v))
-		} else {
-			s.writeTypeArgument(1, uint64(-1-v))
+			s.writeTypeArgument(1, uint64(-1-v.(int64)))
 		}
 
-	case uint:
-		s.writeTypeArgument(0, uint64(v))
-	case uint8:
-		s.writeTypeArgument(0, uint64(v))
-	case uint16:
-		s.writeTypeArgument(0, uint64(v))
-	case uint32:
-		s.writeTypeArgument(0, uint64(v))
-	case uint64:
-		s.writeTypeArgument(0, uint64(v))
+	case uint, uint8, uint16, uint32, uint64:
+		s.writeTypeArgument(0, v.(uint64))
 
-	case float32:
-		s.writeFloat64(float64(v))
-	case float64:
-		s.writeFloat64(v)
+	case float32, float64:
+		s.writeFloat64(v.(float64))
 
 	case []any:
 		s.writeTypeArgument(4, uint64(len(v)))
