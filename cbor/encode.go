@@ -8,12 +8,7 @@ import (
 	"github.com/notjuliet/grove/cid"
 )
 
-type State struct {
-	b []byte
-	p int // position
-}
-
-func (s *State) ensureWrite(needed int) {
+func (s *state) ensureWrite(needed int) {
 	if s.p+needed <= len(s.b) || needed < 0 {
 		return
 	}
@@ -29,38 +24,38 @@ func (s *State) ensureWrite(needed int) {
 	}
 }
 
-func (s *State) writeUint8(val uint8) {
+func (s *state) writeUint8(val uint8) {
 	s.ensureWrite(1)
 	s.b[s.p] = val
 	s.p++
 }
 
-func (s *State) writeUint16(val uint16) {
+func (s *state) writeUint16(val uint16) {
 	s.ensureWrite(2)
 	binary.BigEndian.PutUint16(s.b[s.p:], val)
 	s.p += 2
 }
 
-func (s *State) writeUint32(val uint32) {
+func (s *state) writeUint32(val uint32) {
 	s.ensureWrite(4)
 	binary.BigEndian.PutUint32(s.b[s.p:], val)
 	s.p += 4
 }
 
-func (s *State) writeUint64(val uint64) {
+func (s *state) writeUint64(val uint64) {
 	s.ensureWrite(8)
 	binary.BigEndian.PutUint64(s.b[s.p:], val)
 	s.p += 8
 }
 
-func (s *State) writeFloat64(val float64) {
+func (s *state) writeFloat64(val float64) {
 	s.ensureWrite(8)
 	s.writeUint8(0xe0 | 27)
 	binary.BigEndian.PutUint64(s.b[s.p:], math.Float64bits(val))
 	s.p += 8
 }
 
-func (s *State) writeTypeArgument(info byte, arg uint64) {
+func (s *state) writeTypeArgument(info byte, arg uint64) {
 	if arg < 24 {
 		s.writeUint8(info<<5 | byte(arg))
 	} else if arg < 0x100 {
@@ -78,18 +73,18 @@ func (s *State) writeTypeArgument(info byte, arg uint64) {
 	}
 }
 
-func (s *State) writeBytes(val []byte, info byte) {
+func (s *state) writeBytes(val []byte, info byte) {
 	s.writeTypeArgument(info, uint64(len(val)))
 	s.ensureWrite(len(val))
 	copy(s.b[s.p:s.p+len(val)], val)
 	s.p += len(val)
 }
 
-func (s *State) writeString(val string) {
+func (s *state) writeString(val string) {
 	s.writeBytes([]byte(val), 3)
 }
 
-func (s *State) writeCid(link cid.CidLink) {
+func (s *state) writeCid(link cid.CidLink) {
 	val := link.Bytes
 	s.writeTypeArgument(6, 42)
 	s.writeTypeArgument(2, uint64(len(val)+1))
@@ -99,7 +94,7 @@ func (s *State) writeCid(link cid.CidLink) {
 	s.p += len(val)
 }
 
-func (s *State) writeAny(value any) error {
+func (s *state) writeAny(value any) error {
 	switch v := value.(type) {
 	case nil:
 		s.writeUint8(0xf6)
@@ -157,7 +152,7 @@ func (s *State) writeAny(value any) error {
 }
 
 func Encode(value map[string]any) ([]byte, error) {
-	s := &State{b: make([]byte, 1024)}
+	s := &state{b: make([]byte, 1024)}
 
 	if err := s.writeAny(value); err != nil {
 		return nil, err
