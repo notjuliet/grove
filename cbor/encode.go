@@ -19,13 +19,11 @@ func (s *State) ensureWrite(needed int) {
 	}
 
 	currentLen := len(s.b)
-	currentCap := cap(s.b)
-	requiredCap := currentLen + needed
+	requiredLen := currentLen + needed
 
-	if currentCap < requiredCap {
-		newCapacity := max(currentCap*2, requiredCap)
-
-		newSlice := make([]byte, newCapacity)
+	if currentLen < requiredLen {
+		newLen := max(currentLen*2, requiredLen)
+		newSlice := make([]byte, newLen)
 		copy(newSlice, s.b)
 		s.b = newSlice
 	}
@@ -105,6 +103,7 @@ func (s *State) writeAny(value any) error {
 	switch v := value.(type) {
 	case nil:
 		s.writeUint8(0xf6)
+
 	case bool:
 		if v {
 			s.writeUint8(0xf5)
