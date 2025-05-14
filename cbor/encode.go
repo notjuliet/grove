@@ -13,9 +13,9 @@ type State struct {
 	p int // position
 }
 
-func (s *State) ensureCapacity(needed int) error {
-	if needed < 0 {
-		return fmt.Errorf("needed count cannot be negative")
+func (s *State) ensureWrite(needed int) {
+	if s.p+needed <= len(s.b) || needed < 0 {
+		return
 	}
 
 	currentLen := len(s.b)
@@ -29,66 +29,40 @@ func (s *State) ensureCapacity(needed int) error {
 		copy(newSlice, s.b)
 		s.b = newSlice
 	}
-
-	return nil
 }
 
-func (s *State) ensureWrite(n int) error {
-	if s.p+n > len(s.b) {
-		if err := s.ensureCapacity(n); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *State) writeUint8(val uint8) error {
-	if err := s.ensureWrite(1); err != nil {
-		return err
-	}
+func (s *State) writeUint8(val uint8) {
+	s.ensureWrite(1)
 	s.b[s.p] = val
 	s.p++
-	return nil
 }
 
-func (s *State) writeUint16(val uint16) error {
-	if err := s.ensureWrite(2); err != nil {
-		return err
-	}
+func (s *State) writeUint16(val uint16) {
+	s.ensureWrite(2)
 	binary.BigEndian.PutUint16(s.b[s.p:], val)
 	s.p += 2
-	return nil
 }
 
-func (s *State) writeUint32(val uint32) error {
-	if err := s.ensureWrite(4); err != nil {
-		return err
-	}
+func (s *State) writeUint32(val uint32) {
+	s.ensureWrite(4)
 	binary.BigEndian.PutUint32(s.b[s.p:], val)
 	s.p += 4
-	return nil
 }
 
-func (s *State) writeUint64(val uint64) error {
-	if err := s.ensureWrite(8); err != nil {
-		return err
-	}
+func (s *State) writeUint64(val uint64) {
+	s.ensureWrite(8)
 	binary.BigEndian.PutUint64(s.b[s.p:], val)
 	s.p += 8
-	return nil
 }
 
-func (s *State) writeFloat64(val float64) error {
-	if err := s.ensureWrite(8); err != nil {
-		return err
-	}
+func (s *State) writeFloat64(val float64) {
+	s.ensureWrite(8)
 	s.writeUint8(0xe0 | 27)
 	binary.BigEndian.PutUint64(s.b[s.p:], math.Float64bits(val))
 	s.p += 8
-	return nil
 }
 
-func (s *State) writeTypeArgument(info byte, arg uint64) error {
+func (s *State) writeTypeArgument(info byte, arg uint64) {
 	if arg < 24 {
 		s.writeUint8(info<<5 | byte(arg))
 	} else if arg < 0x100 {
@@ -104,44 +78,27 @@ func (s *State) writeTypeArgument(info byte, arg uint64) error {
 		s.writeUint8(info<<5 | 27)
 		s.writeUint64(arg)
 	}
-
-	return nil
 }
 
-func (s *State) writeBytes(val []byte, info byte) error {
-	if err := s.writeTypeArgument(info, uint64(len(val))); err != nil {
-		return err
-	}
-	if err := s.ensureWrite(len(val)); err != nil {
-		return err
-	}
+func (s *State) writeBytes(val []byte, info byte) {
+	s.writeTypeArgument(info, uint64(len(val)))
+	s.ensureWrite(len(val))
 	copy(s.b[s.p:s.p+len(val)], val)
 	s.p += len(val)
-	return nil
 }
 
-func (s *State) writeString(val string) error {
-	return s.writeBytes([]byte(val), 3)
+func (s *State) writeString(val string) {
+	s.writeBytes([]byte(val), 3)
 }
 
-func (s *State) writeCid(link cid.CidLink) error {
+func (s *State) writeCid(link cid.CidLink) {
 	val := link.Bytes
-	if err := s.writeTypeArgument(6, 42); err != nil {
-		return err
-	}
-	if err := s.writeTypeArgument(2, uint64(len(val)+1)); err != nil {
-		return err
-	}
-	if err := s.writeUint8(0x00); err != nil {
-		return err
-	}
-	if err := s.ensureWrite(len(val)); err != nil {
-		return err
-	}
+	s.writeTypeArgument(6, 42)
+	s.writeTypeArgument(2, uint64(len(val)+1))
+	s.writeUint8(0x00)
+	s.ensureWrite(len(val))
 	copy(s.b[s.p:s.p+len(val)], val)
 	s.p += len(val)
-
-	return nil
 }
 
 func (s *State) writeAny(value any) error {
@@ -218,18 +175,14 @@ func (s *State) writeAny(value any) error {
 	case map[string]any:
 		s.writeTypeArgument(5, uint64(len(v)))
 		for key, val := range v {
-			if err := s.writeString(key); err != nil {
-				return fmt.Errorf("failed encoding map key %s: %w", key, err)
-			}
+			s.writeString(key)
 			if err := s.writeAny(val); err != nil {
 				return fmt.Errorf("failed encoding map value for key %s: %w", key, err)
 			}
 		}
 
 	case cid.CidLink:
-		if err := s.writeCid(v); err != nil {
-			return fmt.Errorf("failed encoding cid-link: %w", err)
-		}
+		s.writeCid(v)
 
 	default:
 		return fmt.Errorf("unsupported type for CBOR encoding: %T", v)
