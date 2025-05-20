@@ -6,20 +6,10 @@ import (
 
 func TestCreate(t *testing.T) {
 	t.Run("positive", func(t *testing.T) {
-		s, err := Create(1234567890, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
+		s := Create(1234567890, 0)
 
 		if s != "222236tg2qm22" {
 			t.Fatal("invalid tid")
-		}
-	})
-
-	t.Run("negative", func(t *testing.T) {
-		_, err := Create(-1, 0)
-		if err == nil {
-			t.Fatal("expected error")
 		}
 	})
 }

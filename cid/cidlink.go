@@ -15,9 +15,13 @@ type jsonLink struct {
 	Link string `json:"$link"`
 }
 
+func (ll CidLink) String() string {
+	return "b" + b32Encoding.EncodeToString(ll.Bytes)
+}
+
 func (ll CidLink) MarshalJSON() ([]byte, error) {
 	jl := jsonLink{
-		Link: string(ll.Bytes),
+		Link: ll.String(),
 	}
 	return json.Marshal(jl)
 }
@@ -32,6 +36,6 @@ func (ll *CidLink) UnmarshalJSON(raw []byte) error {
 	if err != nil {
 		return fmt.Errorf("parsing cid-link CID: %v", err)
 	}
-	*ll = CidLink{Bytes: []byte(c.String())}
+	*ll = CidLink{Bytes: []byte(c.Bytes)}
 	return nil
 }

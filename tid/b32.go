@@ -4,24 +4,28 @@ import "strings"
 
 const b32Sorted = "234567abcdefghijklmnopqrstuvwxyz"
 
-func b32Encode(i int64) string {
+func b32Encode(v uint64) string {
+	v = (0x7FFF_FFFF_FFFF_FFFF & v)
 	s := ""
 
-	for i != 0 {
-		c := i % 32
-		i = i / 32
-		s = b32Sorted[c:c+1] + s
+	for range 13 {
+		s = string(b32Sorted[v&0x1F]) + s
+		v = v >> 5
 	}
 
 	return s
 }
 
-func b32Decode(s string) int64 {
-	var i int64 = 0
+func b32Decode(s string) uint {
+	var v uint = 0
 
-	for _, c := range s {
-		i = i*32 + int64(strings.IndexRune(b32Sorted, c))
+	for n := range s {
+		c := strings.IndexByte(b32Sorted, s[n])
+		if c < 0 {
+			return 0
+		}
+		v = (v << 5) | uint(c&0x1F)
 	}
 
-	return i
+	return v
 }

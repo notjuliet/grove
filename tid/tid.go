@@ -9,33 +9,14 @@ import (
 
 var tidRegex = regexp.MustCompile(`^[234567abcdefghij][234567abcdefghijklmnopqrstuvwxyz]{12}$`)
 
-func padLeft(str string, length int, padChar rune) string {
-	for len(str) < length {
-		str = string(padChar) + str
-	}
-
-	return str
-}
-
-func createRaw(timestamp, clockId int64) string {
-	return padLeft(b32Encode(timestamp), 11, '2') + padLeft(b32Encode(clockId), 2, '2')
-}
-
 // Creates a TID string from a timestamp (in milliseconds) and clock ID value.
-func Create(timestamp, clockId int64) (string, error) {
-	if timestamp < 0 {
-		return "", errors.New("timestamp must be positive")
-	}
-
-	if clockId < 0 {
-		return "", errors.New("clockId must be positive")
-	}
-
-	return createRaw(timestamp, clockId), nil
+func Create(timestamp int64, clockId uint) string {
+	v := (uint64(timestamp&0x1F_FFFF_FFFF_FFFF) << 10) | uint64(clockId&0x3FF)
+	return b32Encode(v)
 }
 
 // Parses a TID string into a timestamp (in milliseconds) and clock ID value.
-func Parse(s string) (timestamp, clockId int64, err error) {
+func Parse(s string) (timestamp, clockId uint, err error) {
 	if err = Validate(s); err != nil {
 		return 0, 0, err
 	}
@@ -61,12 +42,12 @@ func Validate(s string) error {
 
 // TID generator, which keeps state to ensure TID values always monotonically increase.
 type Clock struct {
-	id   int64
+	id   uint
 	mtx  sync.Mutex
 	last int64
 }
 
-func NewClock(id int64) Clock {
+func NewClock(id uint) Clock {
 	return Clock{id: id}
 }
 
@@ -80,5 +61,5 @@ func (c *Clock) Now() string {
 	c.last = now
 	c.mtx.Unlock()
 
-	return createRaw(now, c.id)
+	return Create(now, c.id)
 }
