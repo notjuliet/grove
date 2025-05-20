@@ -23,7 +23,7 @@ func (s *encState) ensureWrite(needed int) {
 	}
 
 	currentLen := len(s.b)
-	requiredLen := currentLen + needed
+	requiredLen := s.p + needed
 
 	if currentLen < requiredLen {
 		newLen := max(currentLen*2, requiredLen)
@@ -58,8 +58,8 @@ func (s *encState) writeUint64(val uint64) {
 }
 
 func (s *encState) writeFloat64(val float64) {
-	s.ensureWrite(8)
 	s.writeUint8(0xe0 | 27)
+	s.ensureWrite(8)
 	binary.BigEndian.PutUint64(s.b[s.p:], math.Float64bits(val))
 	s.p += 8
 }
