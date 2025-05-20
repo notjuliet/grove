@@ -3,11 +3,36 @@ package tid
 import (
 	"errors"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
 
 var tidRegex = regexp.MustCompile(`^[234567abcdefghij][234567abcdefghijklmnopqrstuvwxyz]{12}$`)
+
+const b32Sorted = "234567abcdefghijklmnopqrstuvwxyz"
+
+func b32Encode(v uint64) string {
+	v = (0x7FFF_FFFF_FFFF_FFFF & v)
+	s := ""
+	for range 13 {
+		s = string(b32Sorted[v&0x1F]) + s
+		v = v >> 5
+	}
+	return s
+}
+
+func b32Decode(s string) uint {
+	var v uint = 0
+	for n := range s {
+		c := strings.IndexByte(b32Sorted, s[n])
+		if c < 0 {
+			return 0
+		}
+		v = (v << 5) | uint(c&0x1F)
+	}
+	return v
+}
 
 // Creates a TID string from a timestamp (in milliseconds) and clock ID value.
 func Create(timestamp int64, clockId uint) string {
