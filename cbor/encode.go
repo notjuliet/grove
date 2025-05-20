@@ -2,13 +2,22 @@ package cbor
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 
 	"github.com/notjuliet/grove/cid"
 )
 
-func (s *state) ensureWrite(needed int) {
+type encState struct {
+	b         []byte
+	p         int // position
+	currKey   *string
+	currIndex *int
+	currValue *any
+}
+
+func (s *encState) ensureWrite(needed int) {
 	if s.p+needed <= len(s.b) || needed < 0 {
 		return
 	}
@@ -24,38 +33,38 @@ func (s *state) ensureWrite(needed int) {
 	}
 }
 
-func (s *state) writeUint8(val uint8) {
+func (s *encState) writeUint8(val uint8) {
 	s.ensureWrite(1)
 	s.b[s.p] = val
 	s.p++
 }
 
-func (s *state) writeUint16(val uint16) {
+func (s *encState) writeUint16(val uint16) {
 	s.ensureWrite(2)
 	binary.BigEndian.PutUint16(s.b[s.p:], val)
 	s.p += 2
 }
 
-func (s *state) writeUint32(val uint32) {
+func (s *encState) writeUint32(val uint32) {
 	s.ensureWrite(4)
 	binary.BigEndian.PutUint32(s.b[s.p:], val)
 	s.p += 4
 }
 
-func (s *state) writeUint64(val uint64) {
+func (s *encState) writeUint64(val uint64) {
 	s.ensureWrite(8)
 	binary.BigEndian.PutUint64(s.b[s.p:], val)
 	s.p += 8
 }
 
-func (s *state) writeFloat64(val float64) {
+func (s *encState) writeFloat64(val float64) {
 	s.ensureWrite(8)
 	s.writeUint8(0xe0 | 27)
 	binary.BigEndian.PutUint64(s.b[s.p:], math.Float64bits(val))
 	s.p += 8
 }
 
-func (s *state) writeTypeArgument(info byte, arg uint64) {
+func (s *encState) writeTypeArgument(info byte, arg uint64) {
 	if arg < 24 {
 		s.writeUint8(info<<5 | byte(arg))
 	} else if arg < 0x100 {
@@ -73,18 +82,18 @@ func (s *state) writeTypeArgument(info byte, arg uint64) {
 	}
 }
 
-func (s *state) writeBytes(val []byte, info byte) {
+func (s *encState) writeBytes(val []byte, info byte) {
 	s.writeTypeArgument(info, uint64(len(val)))
 	s.ensureWrite(len(val))
 	copy(s.b[s.p:s.p+len(val)], val)
 	s.p += len(val)
 }
 
-func (s *state) writeString(val string) {
+func (s *encState) writeString(val string) {
 	s.writeBytes([]byte(val), 3)
 }
 
-func (s *state) writeCid(link cid.CidLink) {
+func (s *encState) writeCid(link cid.CidLink) {
 	val := link.Bytes
 	s.writeTypeArgument(6, 42)
 	s.writeTypeArgument(2, uint64(len(val)+1))
@@ -94,7 +103,7 @@ func (s *state) writeCid(link cid.CidLink) {
 	s.p += len(val)
 }
 
-func (s *state) writeAny(value any) error {
+func (s *encState) writeAny(value any) error {
 	switch v := value.(type) {
 	case nil:
 		s.writeUint8(0xf6)
@@ -128,7 +137,8 @@ func (s *state) writeAny(value any) error {
 		s.writeTypeArgument(4, uint64(len(v)))
 		for i, elem := range v {
 			if err := s.writeAny(elem); err != nil {
-				return fmt.Errorf("failed encoding array element %d: %w", i, err)
+				s.currIndex = &i
+				return err
 			}
 		}
 
@@ -137,7 +147,8 @@ func (s *state) writeAny(value any) error {
 		for key, val := range v {
 			s.writeString(key)
 			if err := s.writeAny(val); err != nil {
-				return fmt.Errorf("failed encoding map value for key %s: %w", key, err)
+				s.currKey = &key
+				return err
 			}
 		}
 
@@ -145,16 +156,26 @@ func (s *state) writeAny(value any) error {
 		s.writeCid(v)
 
 	default:
-		return fmt.Errorf("unsupported type for CBOR encoding: %T", v)
+		s.currValue = &v
+		return errors.New("Error while encoding CBOR")
 	}
 
 	return nil
 }
 
 func Encode(value map[string]any) ([]byte, error) {
-	s := &state{b: make([]byte, 1024)}
+	s := &encState{b: make([]byte, 1024)}
 
 	if err := s.writeAny(value); err != nil {
+		if s.currKey != nil {
+			err = errors.Join(err, fmt.Errorf("failed encoding map value for key %s", *s.currKey))
+		}
+		if s.currIndex != nil {
+			err = errors.Join(err, fmt.Errorf("failed encoding array element %d", *s.currIndex))
+		}
+		if s.currValue != nil {
+			err = errors.Join(err, fmt.Errorf("unsupported type for CBOR encoding: %T", *s.currValue))
+		}
 		return nil, err
 	}
 

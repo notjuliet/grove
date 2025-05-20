@@ -19,3 +19,7 @@ lint: ## Verify code style and run static checks
 .PHONY: fmt
 fmt: ## Run syntax re-formatting (modify in place)
 	go fmt ./...
+
+.PHONY: bench
+bench: ## Run benchmarks
+	go test -bench=. ./...
