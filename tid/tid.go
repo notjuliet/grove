@@ -20,10 +20,8 @@ func Parse(s string) (timestamp, clockId uint, err error) {
 	if err = Validate(s); err != nil {
 		return 0, 0, err
 	}
-
 	timestamp = b32Decode(s[0:11])
 	clockId = b32Decode(s[11:13])
-
 	return timestamp, clockId, nil
 }
 
@@ -32,11 +30,9 @@ func Validate(s string) error {
 	if len(s) != 13 {
 		return errors.New("invalid tid length")
 	}
-
 	if !tidRegex.MatchString(s) {
 		return errors.New("invalid tid format")
 	}
-
 	return nil
 }
 
@@ -60,6 +56,5 @@ func (c *Clock) Now() string {
 	}
 	c.last = now
 	c.mtx.Unlock()
-
 	return Create(now, c.id)
 }
