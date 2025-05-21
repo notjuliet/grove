@@ -270,17 +270,17 @@ func DecodeFirst(buf []byte) (value map[string]any, remainder []byte, err error)
 					// DAG-CBOR key ordering check
 					if stack.prevMapKeyBytes != nil {
 						if len(currentKeyBytes) < len(stack.prevMapKeyBytes) {
-							return nil, s.b[s.p:], fmt.Errorf("DAG-CBOR map key order violation: key '%s' (len %d) is shorter than previous key '%s' (len %d)",
+							return nil, s.b[s.p:], fmt.Errorf("map key order violation: key '%s' (len %d) is shorter than previous key '%s' (len %d)",
 								keyStr, len(currentKeyBytes), string(stack.prevMapKeyBytes), len(stack.prevMapKeyBytes))
 						}
 
 						if len(currentKeyBytes) == len(stack.prevMapKeyBytes) {
 							comparison := bytes.Compare(currentKeyBytes, stack.prevMapKeyBytes)
 							if comparison == 0 {
-								return nil, s.b[s.p:], fmt.Errorf("DAG-CBOR map key order violation: duplicate key '%s'", keyStr)
+								return nil, s.b[s.p:], fmt.Errorf("map key order violation: duplicate key '%s'", keyStr)
 							}
 							if comparison < 0 {
-								return nil, s.b[s.p:], fmt.Errorf("DAG-CBOR map key order violation: key '%s' is lexicographically smaller than previous key '%s' of the same length",
+								return nil, s.b[s.p:], fmt.Errorf("map key order violation: key '%s' is lexicographically smaller than previous key '%s' of the same length",
 									keyStr, string(stack.prevMapKeyBytes))
 							}
 						}
@@ -314,7 +314,7 @@ func DecodeFirst(buf []byte) (value map[string]any, remainder []byte, err error)
 
 	finalMap, ok := currVal.(map[string]any)
 	if !ok {
-		return nil, s.b[s.p:], fmt.Errorf("top-level CBOR item is type %T, expected map[string]any", currVal)
+		return nil, s.b[s.p:], fmt.Errorf("top-level item is type %T, expected map[string]any", currVal)
 	}
 
 	return finalMap, s.b[s.p:], nil
