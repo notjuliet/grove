@@ -1,12 +1,12 @@
 package cbor
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
-	"sort"
+	"slices"
+	"strings"
 
 	"github.com/notjuliet/grove/cid"
 )
@@ -150,15 +150,16 @@ func (s *encState) writeAny(value any) error {
 			keys = append(keys, k)
 		}
 
-		sort.Slice(keys, func(i, j int) bool {
-			keyIBytes := []byte(keys[i])
-			keyJBytes := []byte(keys[j])
-			lenI := len(keyIBytes)
-			lenJ := len(keyJBytes)
-			if lenI != lenJ {
-				return lenI < lenJ
+		slices.SortFunc(keys, func(a, b string) int {
+			lenA := len(a)
+			lenB := len(b)
+			if lenA != lenB {
+				if lenA < lenB {
+					return -1
+				}
+				return 1
 			}
-			return bytes.Compare(keyIBytes, keyJBytes) < 0
+			return strings.Compare(a, b)
 		})
 
 		s.writeTypeArgument(5, uint64(len(v)))
