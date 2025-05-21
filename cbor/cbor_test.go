@@ -2,7 +2,6 @@ package cbor
 
 import (
 	"encoding/base64"
-	"os"
 	"reflect"
 	"testing"
 
@@ -181,12 +180,8 @@ func TestDecode(t *testing.T) {
 }
 
 func BenchmarkDecode(b *testing.B) {
-	data, err := os.ReadFile("citm_catalog.json.dagcbor")
-	if err != nil {
-		b.Fatal(err)
-	}
 	for b.Loop() {
-		_, err := Decode(data)
+		_, err := Decode(buffer)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -194,16 +189,8 @@ func BenchmarkDecode(b *testing.B) {
 }
 
 func BenchmarkEncode(b *testing.B) {
-	dat, err := os.ReadFile("citm_catalog.json.dagcbor")
-	if err != nil {
-		b.Fatal(err)
-	}
-	decoded, err := Decode(dat)
-	if err != nil {
-		b.Fatal(err)
-	}
 	for b.Loop() {
-		_, err := Encode(decoded)
+		_, err := Encode(object)
 		if err != nil {
 			b.Fatal(err)
 		}
