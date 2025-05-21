@@ -1,10 +1,12 @@
 package cbor
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/notjuliet/grove/cid"
 )
@@ -143,10 +145,26 @@ func (s *encState) writeAny(value any) error {
 		}
 
 	case map[string]any:
+		keys := make([]string, 0, len(v))
+		for k := range v {
+			keys = append(keys, k)
+		}
+
+		sort.Slice(keys, func(i, j int) bool {
+			keyIBytes := []byte(keys[i])
+			keyJBytes := []byte(keys[j])
+			lenI := len(keyIBytes)
+			lenJ := len(keyJBytes)
+			if lenI != lenJ {
+				return lenI < lenJ
+			}
+			return bytes.Compare(keyIBytes, keyJBytes) < 0
+		})
+
 		s.writeTypeArgument(5, uint64(len(v)))
-		for key, val := range v {
+		for _, key := range keys {
 			s.writeString(key)
-			if err := s.writeAny(val); err != nil {
+			if err := s.writeAny(v[key]); err != nil {
 				s.currKey = &key
 				return err
 			}

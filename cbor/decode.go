@@ -1,6 +1,7 @@
 package cbor
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -139,16 +140,17 @@ func (s *state) readCid(length uint64) (cid.CidLink, error) {
 }
 
 type container struct {
-	isMap     bool       // true for map, false for array
-	elements  any        // *[]any or *map[string]any
-	mapKey    *string    // Holds the current key while decoding map value
-	remaining uint64     // Number of items (or key/value pairs * 2 for maps) left
-	next      *container // Link to parent container
+	isMap           bool       // true for map, false for array
+	elements        any        // *[]any or *map[string]any
+	currMapKey      *string    // Holds the current key while decoding map value
+	prevMapKeyBytes []byte     // Stores the raw bytes of the previous map key for DAG-CBOR sorting comparison
+	remaining       uint64     // Number of items (or key/value pairs * 2 for maps) left
+	next            *container // Link to parent container
 }
 
 func DecodeFirst(buf []byte) (value map[string]any, remainder []byte, err error) {
 	if len(buf) == 0 {
-		return nil, buf, errors.New("input buffer is empty")
+		return nil, nil, errors.New("input buffer is empty")
 	}
 
 	s := &state{b: buf, p: 0}
@@ -158,14 +160,14 @@ func DecodeFirst(buf []byte) (value map[string]any, remainder []byte, err error)
 	for s.p < len(s.b) {
 		majorType, info, err := s.readTypeInfo()
 		if err != nil {
-			return nil, buf, fmt.Errorf("reading type info: %w", err)
+			return nil, s.b[s.p:], fmt.Errorf("reading type info: %w", err)
 		}
 
 		var arg uint64
 		if majorType < 7 {
 			arg, err = s.readArgument(info)
 			if err != nil {
-				return nil, buf, fmt.Errorf("reading argument for type %d: %w", majorType, err)
+				return nil, s.b[s.p:], fmt.Errorf("reading argument for type %d: %w", majorType, err)
 			}
 		}
 
@@ -174,23 +176,23 @@ func DecodeFirst(buf []byte) (value map[string]any, remainder []byte, err error)
 			currVal = arg
 		case 1: // Negative Integer
 			if arg > math.MaxInt64 {
-				return nil, buf, fmt.Errorf("negative integer -1-%d is too large (overflows int64)", arg)
+				return nil, s.b[s.p:], fmt.Errorf("negative integer -1-%d is too large (overflows int64)", arg)
 			}
 			currVal = -1 - int64(arg)
 		case 2: // Byte String
 			currVal, err = s.readBytes(arg)
 			if err != nil {
-				return nil, buf, err
+				return nil, s.b[s.p:], err
 			}
 		case 3: // Text String
 			currVal, err = s.readString(arg)
 			if err != nil {
-				return nil, buf, err
+				return nil, s.b[s.p:], err
 			}
 		case 4: // Array
 			arr := make([]any, 0, int(arg))
-			currVal = &arr
 			if arg > 0 {
+				currVal = &arr
 				stack = &container{
 					isMap:     false,
 					elements:  currVal,
@@ -199,39 +201,41 @@ func DecodeFirst(buf []byte) (value map[string]any, remainder []byte, err error)
 				}
 				continue
 			}
+			currVal = arr
 		case 5: // Map
 			m := make(map[string]any, int(arg))
-			currVal = &m
 			if arg > 0 {
+				currVal = &m
 				stack = &container{
-					isMap:     true,
-					elements:  currVal,
-					remaining: arg * 2,
-					mapKey:    nil,
-					next:      stack,
+					isMap:      true,
+					elements:   currVal,
+					remaining:  arg * 2,
+					currMapKey: nil,
+					next:       stack,
 				}
 				continue
 			}
+			currVal = m
 		case 6: // Tag
 			switch arg {
 			case 42: // CID Link
 				contentMajorType, contentInfo, err := s.readTypeInfo()
 				if err != nil {
-					return nil, buf, fmt.Errorf("reading type info for tag %d content: %w", arg, err)
+					return nil, s.b[s.p:], fmt.Errorf("reading type info for tag %d content: %w", arg, err)
 				}
 				if contentMajorType != 2 {
-					return nil, buf, fmt.Errorf("expected tag %d content to be type 2 (bytes), got type %d", arg, contentMajorType)
+					return nil, s.b[s.p:], fmt.Errorf("expected tag %d content to be type 2 (bytes), got type %d", arg, contentMajorType)
 				}
 				contentArg, err := s.readArgument(contentInfo)
 				if err != nil {
-					return nil, buf, fmt.Errorf("reading argument for tag %d content: %w", arg, err)
+					return nil, s.b[s.p:], fmt.Errorf("reading argument for tag %d content: %w", arg, err)
 				}
 				currVal, err = s.readCid(contentArg)
 				if err != nil {
-					return nil, buf, fmt.Errorf("reading CID for tag %d: %w", arg, err)
+					return nil, s.b[s.p:], fmt.Errorf("reading CID for tag %d: %w", arg, err)
 				}
 			default:
-				return nil, buf, fmt.Errorf("unsupported tag number: %d", arg)
+				return nil, s.b[s.p:], fmt.Errorf("unsupported tag number: %d", arg)
 			}
 		case 7: // Simple values and floats
 			switch info {
@@ -244,27 +248,48 @@ func DecodeFirst(buf []byte) (value map[string]any, remainder []byte, err error)
 			case 27: // Float64
 				currVal, err = s.readFloat64()
 				if err != nil {
-					return nil, buf, err
+					return nil, s.b[s.p:], err
 				}
 			default:
-				return nil, buf, fmt.Errorf("invalid simple value info: %d", info)
+				return nil, s.b[s.p:], fmt.Errorf("invalid simple value info: %d", info)
 			}
 		default:
-			return nil, buf, fmt.Errorf("internal error: invalid major type %d", majorType)
+			return nil, s.b[s.p:], fmt.Errorf("internal error: invalid major type %d", majorType)
 		}
 
 		for stack != nil {
 			if stack.isMap {
 				mapPtr := stack.elements.(*map[string]any)
-				if stack.mapKey == nil {
+				if stack.currMapKey == nil {
 					keyStr, ok := currVal.(string)
 					if !ok {
-						return nil, buf, fmt.Errorf("map key must be a string, got %T", currVal)
+						return nil, s.b[s.p:], fmt.Errorf("map key must be a string, got %T (value: %v)", currVal, currVal)
 					}
-					stack.mapKey = &keyStr
+					currentKeyBytes := []byte(keyStr)
+
+					// DAG-CBOR key ordering check
+					if stack.prevMapKeyBytes != nil {
+						if len(currentKeyBytes) < len(stack.prevMapKeyBytes) {
+							return nil, s.b[s.p:], fmt.Errorf("DAG-CBOR map key order violation: key '%s' (len %d) is shorter than previous key '%s' (len %d)",
+								keyStr, len(currentKeyBytes), string(stack.prevMapKeyBytes), len(stack.prevMapKeyBytes))
+						}
+
+						if len(currentKeyBytes) == len(stack.prevMapKeyBytes) {
+							comparison := bytes.Compare(currentKeyBytes, stack.prevMapKeyBytes)
+							if comparison == 0 {
+								return nil, s.b[s.p:], fmt.Errorf("DAG-CBOR map key order violation: duplicate key '%s'", keyStr)
+							}
+							if comparison < 0 {
+								return nil, s.b[s.p:], fmt.Errorf("DAG-CBOR map key order violation: key '%s' is lexicographically smaller than previous key '%s' of the same length",
+									keyStr, string(stack.prevMapKeyBytes))
+							}
+						}
+					}
+					stack.prevMapKeyBytes = currentKeyBytes
+					stack.currMapKey = &keyStr
 				} else {
-					(*mapPtr)[*stack.mapKey] = currVal
-					stack.mapKey = nil
+					(*mapPtr)[*stack.currMapKey] = currVal
+					stack.currMapKey = nil
 				}
 			} else {
 				arrPtr := stack.elements.(*[]any)
@@ -283,7 +308,16 @@ func DecodeFirst(buf []byte) (value map[string]any, remainder []byte, err error)
 	nextItem:
 	}
 
-	return currVal.(map[string]any), s.b[s.p:], nil
+	if currVal == nil {
+		return nil, s.b[s.p:], errors.New("no CBOR object decoded or decoded item is null, expected map[string]any")
+	}
+
+	finalMap, ok := currVal.(map[string]any)
+	if !ok {
+		return nil, s.b[s.p:], fmt.Errorf("top-level CBOR item is type %T, expected map[string]any", currVal)
+	}
+
+	return finalMap, s.b[s.p:], nil
 }
 
 func Decode(buf []byte) (map[string]any, error) {
