@@ -148,7 +148,7 @@ type container struct {
 	next            *container // Link to parent container
 }
 
-func DecodeFirst(buf []byte) (value map[string]any, remainder []byte, err error) {
+func DecodeFirst(buf []byte) (value any, remainder []byte, err error) {
 	if len(buf) == 0 {
 		return nil, nil, errors.New("input buffer is empty")
 	}
@@ -308,19 +308,10 @@ func DecodeFirst(buf []byte) (value map[string]any, remainder []byte, err error)
 	nextItem:
 	}
 
-	if currVal == nil {
-		return nil, s.b[s.p:], errors.New("no CBOR object decoded or decoded item is null, expected map[string]any")
-	}
-
-	finalMap, ok := currVal.(map[string]any)
-	if !ok {
-		return nil, s.b[s.p:], fmt.Errorf("top-level item is type %T, expected map[string]any", currVal)
-	}
-
-	return finalMap, s.b[s.p:], nil
+	return currVal, s.b[s.p:], nil
 }
 
-func Decode(buf []byte) (map[string]any, error) {
+func Decode(buf []byte) (any, error) {
 	val, rmd, err := DecodeFirst(buf)
 	if err != nil {
 		return nil, err
