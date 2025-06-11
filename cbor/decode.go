@@ -175,9 +175,6 @@ func DecodeFirst(buf []byte) (value any, remainder []byte, err error) {
 		case 0: // Unsigned Integer
 			currVal = arg
 		case 1: // Negative Integer
-			if arg > math.MaxInt64 {
-				return nil, s.b[s.p:], fmt.Errorf("negative integer -1-%d is too large (overflows int64)", arg)
-			}
 			currVal = -1 - int64(arg)
 		case 2: // Byte String
 			currVal, err = s.readBytes(arg)

@@ -2,6 +2,7 @@ package cbor
 
 import (
 	"encoding/base64"
+	"math"
 	"reflect"
 	"testing"
 
@@ -17,8 +18,8 @@ var object = map[string]any{
 	"wrong":   false,
 	// "test":       []any{[]string{"hello", "world"}},
 	"empty":      nil,
-	"minInteger": int64(-9007199254740991),
-	"maxInteger": uint64(9007199254740991),
+	"minInteger": int64(math.MinInt64),
+	"maxInteger": uint64(math.MaxInt64),
 	"pi":         3.141592653589793,
 	"npi":        -3.141592653589793,
 	"nested": map[string]any{

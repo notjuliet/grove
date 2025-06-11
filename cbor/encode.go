@@ -124,7 +124,7 @@ func (s *encState) writeAny(value any) error {
 
 	case int, int8, int16, int32, int64:
 		if v.(int64) >= 0 {
-			s.writeTypeArgument(0, v.(uint64))
+			s.writeTypeArgument(0, uint64(v.(int64)))
 		} else {
 			s.writeTypeArgument(1, uint64(-1-v.(int64)))
 		}
