@@ -66,6 +66,12 @@ func (s *state) readFloat64() (float64, error) {
 	}
 	val := math.Float64frombits(binary.BigEndian.Uint64(s.b[s.p:]))
 	s.p += 8
+	if math.IsNaN(val) {
+		return 0, fmt.Errorf("decoded float is NaN, which is not allowed")
+	}
+	if math.IsInf(val, 0) {
+		return 0, fmt.Errorf("decoded float is infinite, which is not allowed")
+	}
 	return val, nil
 }
 
@@ -98,9 +104,6 @@ func (s *state) readBytes(length uint64) ([]byte, error) {
 	}
 	slice := make([]byte, length)
 	copy(slice, s.b[s.p:s.p+int(length)])
-	if !utf8.Valid(slice) {
-		return nil, fmt.Errorf("invalid UTF-8 string")
-	}
 	s.p += int(length)
 	return slice, nil
 }
@@ -109,6 +112,9 @@ func (s *state) readString(length uint64) (string, error) {
 	bytes, err := s.readBytes(length)
 	if err != nil {
 		return "", err
+	}
+	if !utf8.Valid(bytes) {
+		return "", fmt.Errorf("invalid UTF-8 string")
 	}
 	return string(bytes), nil
 }
