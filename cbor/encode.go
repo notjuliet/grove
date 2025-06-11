@@ -59,11 +59,18 @@ func (s *encState) writeUint64(val uint64) {
 	s.p += 8
 }
 
-func (s *encState) writeFloat64(val float64) {
+func (s *encState) writeFloat64(val float64) error {
+	if math.IsNaN(val) {
+		return fmt.Errorf("encoded float is NaN, which is not allowed")
+	}
+	if math.IsInf(val, 0) {
+		return fmt.Errorf("encoded float is infinite, which is not allowed")
+	}
 	s.writeUint8(0xe0 | 27)
 	s.ensureWrite(8)
 	binary.BigEndian.PutUint64(s.b[s.p:], math.Float64bits(val))
 	s.p += 8
+	return nil
 }
 
 func (s *encState) writeTypeArgument(info byte, arg uint64) {
@@ -133,7 +140,10 @@ func (s *encState) writeAny(value any) error {
 		s.writeTypeArgument(0, v.(uint64))
 
 	case float32, float64:
-		s.writeFloat64(v.(float64))
+		if err := s.writeFloat64(v.(float64)); err != nil {
+			s.currValue = &v
+			return err
+		}
 
 	case []any:
 		s.writeTypeArgument(4, uint64(len(v)))
