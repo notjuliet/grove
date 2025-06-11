@@ -11,7 +11,7 @@ import (
 
 var object = map[string]any{
 	"key":     "value",
-	"link":    cid.CidLink{Bytes: []byte("bafyreihffx5a2e7k5uwrmmgofbvzujc5cmw5h4espouwuxt3liqoflx3ee")},
+	"link":    cid.CidLink{Bytes: []byte{1, 113, 18, 32, 229, 45, 250, 13, 19, 234, 237, 45, 22, 48, 206, 40, 107, 154, 36, 93, 19, 45, 211, 240, 146, 123, 169, 106, 94, 123, 90, 32, 226, 174, 251, 33}},
 	"bytes":   []byte("lorem ipsum sit dolor amet"),
 	"answer":  uint64(42),
 	"correct": true,

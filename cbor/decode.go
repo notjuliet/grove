@@ -141,8 +141,12 @@ func (s *state) readCid(length uint64) (cid.CidLink, error) {
 	}
 	cidBytes := make([]byte, cidLen)
 	copy(cidBytes, s.b[s.p+1:s.p+int(length)])
+	c := cid.CidLink{Bytes: cidBytes}
+	if _, err := cid.Parse(c.String()); err != nil {
+		return cid.CidLink{}, fmt.Errorf("invalid CID: %w", err)
+	}
 	s.p += int(length)
-	return cid.CidLink{Bytes: cidBytes}, nil
+	return c, nil
 }
 
 type container struct {
