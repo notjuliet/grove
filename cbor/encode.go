@@ -182,7 +182,7 @@ func (s *encState) writeAny(value any) error {
 	return nil
 }
 
-func Encode(value map[string]any) ([]byte, error) {
+func Encode(value any) ([]byte, error) {
 	s := &encState{b: make([]byte, 1024)}
 
 	if err := s.writeAny(value); err != nil {
