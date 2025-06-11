@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"unicode/utf8"
 
 	"github.com/notjuliet/grove/cid"
 )
@@ -97,6 +98,9 @@ func (s *state) readBytes(length uint64) ([]byte, error) {
 	}
 	slice := make([]byte, length)
 	copy(slice, s.b[s.p:s.p+int(length)])
+	if !utf8.Valid(slice) {
+		return nil, fmt.Errorf("invalid UTF-8 string")
+	}
 	s.p += int(length)
 	return slice, nil
 }
