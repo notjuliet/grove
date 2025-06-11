@@ -83,15 +83,27 @@ func (s *state) readArgument(info byte) (uint64, error) {
 	switch info {
 	case 24:
 		val, err := s.readUint8()
+		if val < 24 {
+			return 0, fmt.Errorf("integer is not minimally encoded")
+		}
 		return uint64(val), err
 	case 25:
 		val, err := s.readUint16()
+		if val < math.MaxUint8 {
+			return 0, fmt.Errorf("integer is not minimally encoded")
+		}
 		return uint64(val), err
 	case 26:
 		val, err := s.readUint32()
+		if val < math.MaxUint16 {
+			return 0, fmt.Errorf("integer is not minimally encoded")
+		}
 		return uint64(val), err
 	case 27:
 		val, err := s.readUint64()
+		if val < math.MaxUint32 {
+			return 0, fmt.Errorf("integer is not minimally encoded")
+		}
 		return val, err
 	default:
 		return 0, fmt.Errorf("invalid argument encoding info: %d", info)
