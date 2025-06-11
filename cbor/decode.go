@@ -136,10 +136,12 @@ func (s *state) readCid(length uint64) (cid.CidLink, error) {
 	}
 
 	cidLen := int(length - 1)
+	if cidLen <= 0 {
+		return cid.CidLink{}, fmt.Errorf("invalid CID length")
+	}
 	cidBytes := make([]byte, cidLen)
 	copy(cidBytes, s.b[s.p+1:s.p+int(length)])
 	s.p += int(length)
-
 	return cid.CidLink{Bytes: cidBytes}, nil
 }
 
